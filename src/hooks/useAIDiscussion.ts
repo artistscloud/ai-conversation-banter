@@ -10,11 +10,11 @@ export interface ChatMessage extends Message {
 }
 
 export function useAIDiscussion(
-  topic: string,
-  selectedModels: string[],
+  topic: string | undefined,
+  selectedModels: string[] | undefined,
   apiKey: string
 ) {
-  // Initialize with a default user message to ensure at least one exists
+  // Initialize with a guaranteed default user message
   const [messages, setMessages] = useState<ChatMessage[]>([
     {
       role: "user",
@@ -40,20 +40,25 @@ export function useAIDiscussion(
       ? selectedModels 
       : Object.keys(AI_MODELS).slice(0, 2);
 
-    // Update the initial message if a topic is provided
-    setMessages(prevMessages => {
-      const newMessages = [
-        {
-          role: "user",
-          content: `The topic for discussion is: "${effectiveTopic}"`,
-          name: "You"
-        },
-        ...prevMessages.slice(1) // Preserve any subsequent messages
-      ];
-      console.log("Messages updated with topic:", newMessages);
+    // Update the initial message if a topic is provided, otherwise keep default
+    if (topic) {
+      setMessages(prevMessages => {
+        const newMessages = [
+          {
+            role: "user",
+            content: `The topic for discussion is: "${effectiveTopic}"`,
+            name: "You"
+          },
+          ...prevMessages.slice(1)
+        ];
+        console.log("Updated messages with topic:", newMessages);
+        setIsReady(true);
+        return newMessages;
+      });
+    } else {
+      console.log("No topic provided, using default message:", messages);
       setIsReady(true);
-      return newMessages;
-    });
+    }
 
     return () => {
       if (messages.length > 1 && effectiveTopic) {
@@ -74,7 +79,7 @@ export function useAIDiscussion(
   }, [isReady]);
 
   useEffect(() => {
-    if (messages.length > 1 && topic) {
+    if (messages.length > 1 && (topic || "General Discussion")) {
       const effectiveModels = Array.isArray(selectedModels) && selectedModels.length >= 2 
         ? selectedModels 
         : Object.keys(AI_MODELS).slice(0, 2);
@@ -109,9 +114,8 @@ export function useAIDiscussion(
     setIsGenerating(true);
     currentDiscussionRef.current = true;
 
-    // Ensure a user message exists before proceeding
+    console.log("Starting generation with messages:", messages);
     if (!messages.some(msg => msg.role === "user")) {
-      console.warn("No user message found, setting fallback");
       const initialMessage: ChatMessage = {
         role: "user",
         content: `The topic for discussion is: "${topic || 'general banter'}"`,
