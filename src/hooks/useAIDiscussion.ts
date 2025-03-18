@@ -96,6 +96,7 @@ export function useAIDiscussion(
   const [isPaused, setIsPaused] = useState(false);
   const [isGenerating, setIsGenerating] = useState(false);
   const [conversationId, setConversationId] = useState<string>("");
+  const [errors, setErrors] = useState<Record<string, string>>({});
   const currentDiscussionRef = useRef<boolean>(true);
   const generationLoopRef = useRef<any>(null);
 
@@ -137,8 +138,22 @@ export function useAIDiscussion(
     }
   }, [messages, topic, selectedModels]);
 
+  // Validate API key
+  useEffect(() => {
+    if (!apiKey) {
+      toast.error("OpenRouter API key is missing. Please provide a valid API key.");
+      setIsPaused(true);
+    }
+  }, [apiKey]);
+
   const startGeneratingResponses = async () => {
     if (isGenerating) return; // Prevent multiple instances
+    
+    if (!apiKey) {
+      toast.error("OpenRouter API key is missing. Please provide a valid API key.");
+      setIsPaused(true);
+      return;
+    }
     
     setIsGenerating(true);
     currentDiscussionRef.current = true;
@@ -185,6 +200,15 @@ export function useAIDiscussion(
           
           setMessages(prev => [...prev, newMessage]);
           
+          // Clear any previous error for this model
+          if (errors[modelId]) {
+            setErrors(prev => {
+              const updated = {...prev};
+              delete updated[modelId];
+              return updated;
+            });
+          }
+          
           // Add a small delay between responses
           await new Promise(resolve => setTimeout(resolve, 800));
           
@@ -193,8 +217,29 @@ export function useAIDiscussion(
             return;
           }
         } catch (error) {
+          const errorMessage = error instanceof Error ? error.message : 'Unknown error';
           console.error(`Error generating response for ${modelId}:`, error);
-          toast.error(`Error with ${AI_MODELS[modelId].name}'s response`);
+          
+          // Store the error for this model
+          setErrors(prev => ({
+            ...prev,
+            [modelId]: errorMessage
+          }));
+          
+          // Show toast with specific model error
+          toast.error(`Error with ${AI_MODELS[modelId].name}: ${errorMessage}`);
+          
+          // Add error message as a system message
+          const errorMsg: ChatMessage = {
+            role: "system",
+            content: `Error with ${AI_MODELS[modelId].name}'s response: ${errorMessage}`,
+            modelId: modelId
+          };
+          
+          setMessages(prev => [...prev, errorMsg]);
+          
+          // Add a small delay between responses
+          await new Promise(resolve => setTimeout(resolve, 800));
         }
       }
       
@@ -267,6 +312,7 @@ export function useAIDiscussion(
     isPaused,
     isGenerating,
     conversationId,
+    errors,
     togglePause,
     addUserMessage,
     getMessagePosition,

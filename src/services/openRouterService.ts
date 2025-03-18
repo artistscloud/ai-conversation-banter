@@ -35,6 +35,13 @@ Consider and reference what other AIs have said before you (if applicable).`;
     ];
 
     console.log(`Sending request to OpenRouter for model ${model.modelId}`);
+    console.log('Request messages:', JSON.stringify(fullMessages, null, 2));
+
+    // Check if API key is provided
+    if (!apiKey) {
+      console.error('No API key provided for OpenRouter');
+      throw new Error('OpenRouter API key is missing');
+    }
 
     const response = await fetch("https://openrouter.ai/api/v1/chat/completions", {
       method: "POST",
@@ -54,11 +61,27 @@ Consider and reference what other AIs have said before you (if applicable).`;
 
     if (!response.ok) {
       const errorText = await response.text();
-      console.error(`OpenRouter API error response: ${errorText}`);
-      throw new Error(`OpenRouter API error: ${response.status} ${errorText}`);
+      console.error(`OpenRouter API error (${response.status}):`, errorText);
+      
+      // More detailed error message
+      if (response.status === 401) {
+        throw new Error(`OpenRouter API error: Invalid API key or authorization failed`);
+      } else if (response.status === 400) {
+        throw new Error(`OpenRouter API error: Bad request - check model ID and parameters`);
+      } else {
+        throw new Error(`OpenRouter API error: ${response.status} ${errorText}`);
+      }
     }
 
     const data = await response.json() as OpenRouterResponse;
+    
+    // Check if the response has the expected structure
+    if (!data.choices || !data.choices[0] || !data.choices[0].message) {
+      console.error('Unexpected response structure from OpenRouter:', data);
+      throw new Error('Invalid response format from OpenRouter');
+    }
+    
+    console.log(`Received response for ${model.name}:`, data.choices[0].message.content);
     return data.choices[0].message.content;
   } catch (error) {
     console.error(`Error generating response for ${model.name}:`, error);
