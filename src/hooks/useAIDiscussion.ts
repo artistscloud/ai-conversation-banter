@@ -100,6 +100,11 @@ export function useAIDiscussion(
   const currentDiscussionRef = useRef<boolean>(true);
   const generationLoopRef = useRef<any>(null);
 
+  // Get the effective API key (provided or from localStorage)
+  const getEffectiveApiKey = (): string => {
+    return apiKey || localStorage.getItem("openrouter_api_key") || "";
+  };
+
   // Initialize the conversation with a topic
   useEffect(() => {
     if (topic && selectedModels.length >= 2) {
@@ -140,8 +145,12 @@ export function useAIDiscussion(
 
   // Validate API key
   useEffect(() => {
-    if (!apiKey) {
+    const effectiveApiKey = getEffectiveApiKey();
+    if (!effectiveApiKey) {
       toast.error("OpenRouter API key is missing. Please provide a valid API key.");
+      setIsPaused(true);
+    } else if (!effectiveApiKey.startsWith('sk-or-')) {
+      toast.error("Invalid OpenRouter API key format. Should start with 'sk-or-'");
       setIsPaused(true);
     }
   }, [apiKey]);
@@ -149,8 +158,9 @@ export function useAIDiscussion(
   const startGeneratingResponses = async () => {
     if (isGenerating) return; // Prevent multiple instances
     
-    if (!apiKey) {
-      toast.error("OpenRouter API key is missing. Please provide a valid API key.");
+    const effectiveApiKey = getEffectiveApiKey();
+    if (!effectiveApiKey || !effectiveApiKey.startsWith('sk-or-')) {
+      toast.error("OpenRouter API key is missing or invalid. Please provide a valid API key.");
       setIsPaused(true);
       return;
     }
@@ -182,8 +192,8 @@ export function useAIDiscussion(
 
           console.log(`Generating response for ${model.name} using model ${model.modelId}`);
           
-          // Generate response from the model
-          const response = await generateResponse(model, historyMessages, apiKey);
+          // Use the effective API key
+          const response = await generateResponse(model, historyMessages, effectiveApiKey);
           
           if (!currentDiscussionRef.current || isPaused) {
             setIsGenerating(false);

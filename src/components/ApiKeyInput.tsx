@@ -4,6 +4,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Key } from "lucide-react";
 import { toast } from "sonner";
+import { storeApiKey } from "@/services/openRouterService";
 
 interface ApiKeyInputProps {
   onApiKeySubmit: (apiKey: string) => void;
@@ -24,7 +25,13 @@ const ApiKeyInput: React.FC<ApiKeyInputProps> = ({ onApiKeySubmit }) => {
       // Clean the URL without refreshing the page
       window.history.replaceState({}, document.title, window.location.pathname);
     }
-  }, []);
+    
+    // Check if we already have a stored key
+    const storedKey = localStorage.getItem("openrouter_api_key");
+    if (storedKey && storedKey.startsWith('sk-or-')) {
+      onApiKeySubmit(storedKey);
+    }
+  }, [onApiKeySubmit]);
 
   // If apiKey is set by URL parameter, automatically submit it
   useEffect(() => {
@@ -45,7 +52,10 @@ const ApiKeyInput: React.FC<ApiKeyInputProps> = ({ onApiKeySubmit }) => {
       return;
     }
     
-    // Simulate validation
+    // Store the API key in localStorage
+    storeApiKey(apiKey);
+    
+    // Pass it to the parent component
     setTimeout(() => {
       onApiKeySubmit(apiKey);
       toast.success("API key accepted");

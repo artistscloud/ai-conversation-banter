@@ -1,5 +1,5 @@
 
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import { AI_MODELS } from "@/config/aiModels";
 import ApiKeyInput from "@/components/ApiKeyInput";
 import TopicInput from "@/components/TopicInput";
@@ -9,17 +9,40 @@ import { SavedConversation } from "@/hooks/useAIDiscussion";
 import { Toaster } from "@/components/ui/sonner";
 import { Button } from "@/components/ui/button";
 import { ArrowLeft } from "lucide-react";
+import { storeApiKey } from "@/services/openRouterService";
 
 const Index = () => {
-  const [apiKey, setApiKey] = useState("");
+  const [apiKey, setApiKey] = useState<string>(() => {
+    // Check if we have a stored API key in localStorage on component mount
+    return localStorage.getItem("openrouter_api_key") || "";
+  });
   const [topic, setTopic] = useState("");
   const [selectedModels, setSelectedModels] = useState<string[]>(
     Object.keys(AI_MODELS).slice(0, 3) // Default to first 3 models
   );
   const [showSavedConversations, setShowSavedConversations] = useState(false);
   
+  // Process URL parameters for API key if present
+  useEffect(() => {
+    const urlParams = new URLSearchParams(window.location.search);
+    const keyFromUrl = urlParams.get('key');
+    
+    if (keyFromUrl && keyFromUrl.startsWith('sk-or-')) {
+      setApiKey(keyFromUrl);
+      storeApiKey(keyFromUrl);
+      // Clean the URL without refreshing the page
+      window.history.replaceState({}, document.title, window.location.pathname);
+    }
+
+    // Check if we were passed an API key directly
+    if (apiKey && apiKey.startsWith('sk-or-')) {
+      storeApiKey(apiKey);
+    }
+  }, []);
+  
   const handleApiKeySubmit = (key: string) => {
     setApiKey(key);
+    storeApiKey(key);
   };
   
   const handleStartDiscussion = (newTopic: string, models: string[]) => {
@@ -42,6 +65,14 @@ const Index = () => {
   const handleToggleSavedConversations = () => {
     setShowSavedConversations(prev => !prev);
   };
+
+  // If we already have an API key, skip the input screen
+  useEffect(() => {
+    const storedKey = localStorage.getItem("openrouter_api_key");
+    if (storedKey && storedKey.startsWith('sk-or-')) {
+      setApiKey(storedKey);
+    }
+  }, []);
 
   return (
     <div className="min-h-screen flex flex-col bg-gradient-to-b from-blue-50 to-indigo-50">

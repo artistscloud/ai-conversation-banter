@@ -1,5 +1,6 @@
 
 import { AIModel } from "../config/aiModels";
+import { supabase } from "@/integrations/supabase/client";
 
 export interface Message {
   role: "system" | "user" | "assistant";
@@ -16,14 +17,27 @@ interface OpenRouterResponse {
   }[];
 }
 
+// Check if we have a stored API key in localStorage
+const getStoredApiKey = (): string | null => {
+  return localStorage.getItem("openrouter_api_key");
+};
+
+// Store the API key in localStorage
+export const storeApiKey = (apiKey: string): void => {
+  localStorage.setItem("openrouter_api_key", apiKey);
+};
+
 export async function generateResponse(
   model: AIModel,
   messages: Message[],
-  apiKey: string
+  apiKey?: string
 ): Promise<string> {
   try {
+    // First check for the provided apiKey, then check localStorage
+    let effectiveApiKey = apiKey || getStoredApiKey();
+
     // Check if API key is provided and has the right format
-    if (!apiKey || !apiKey.startsWith('sk-or-')) {
+    if (!effectiveApiKey || !effectiveApiKey.startsWith('sk-or-')) {
       console.error('Invalid or missing OpenRouter API key');
       throw new Error('Valid OpenRouter API key is required (should start with sk-or-)');
     }
@@ -47,7 +61,7 @@ Consider and reference what other AIs have said before you (if applicable).`;
       method: "POST",
       headers: {
         "Content-Type": "application/json",
-        "Authorization": `Bearer ${apiKey}`,
+        "Authorization": `Bearer ${effectiveApiKey}`,
         "HTTP-Referer": window.location.href,
         "X-Title": "AI Conversation Banter"
       },
