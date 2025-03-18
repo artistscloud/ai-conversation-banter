@@ -33,6 +33,7 @@ export function useAIDiscussion(
       const initialMessage: ChatMessage = {
         role: "user",
         content: `The topic for discussion is: "${topic}"`,
+        name: "You" // Adding name property to ensure it's preserved in API calls
       };
       setMessages([initialMessage]);
       
@@ -103,13 +104,15 @@ export function useAIDiscussion(
           const model = AI_MODELS[modelId];
           
           // Prepare the conversation history for context
+          // Ensure all required fields are preserved (role, content, name)
           const historyMessages = messages.map(msg => ({
             role: msg.role,
             content: msg.content,
-            name: msg.name
+            name: msg.name || (msg.role === "user" ? "You" : undefined)
           }));
 
           console.log(`Generating response for ${model.name} using model ${model.modelId}`);
+          console.log('Messages being sent to API:', JSON.stringify(historyMessages, null, 2));
           
           // Use the effective API key
           const response = await generateResponse(model, historyMessages, effectiveApiKey);

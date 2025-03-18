@@ -80,6 +80,12 @@ export async function generateResponse(
       throw new Error('Valid OpenRouter API key is required (should start with sk-or-)');
     }
 
+    // Validate that we have at least one user message
+    if (!messages.some(msg => msg.role === "user")) {
+      console.error('No user message found in the conversation context');
+      throw new Error('At least one user message is required in the conversation');
+    }
+
     const systemPrompt = `You are ${model.name}, an AI model with the following personality: ${model.personality}.
 You are participating in a discussion with other AI models.
 Respond in character, maintaining your unique perspective and personality.
