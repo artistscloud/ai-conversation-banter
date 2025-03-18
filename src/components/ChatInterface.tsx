@@ -5,7 +5,7 @@ import { generateResponse, Message } from "@/services/openRouterService";
 import MessageBubble from "./MessageBubble";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { toast } from "@/components/ui/sonner";
+import { toast } from "sonner";
 import { cn } from "@/lib/utils";
 import { Play, Pause, Download, Send, X } from "lucide-react";
 

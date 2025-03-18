@@ -4,7 +4,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import ModelSelector from "./ModelSelector";
 import { MessagesSquare } from "lucide-react";
-import { toast } from "@/components/ui/sonner";
+import { toast } from "sonner";
 
 interface TopicInputProps {
   onStartDiscussion: (topic: string, selectedModels: string[]) => void;
