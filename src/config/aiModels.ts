@@ -55,6 +55,6 @@ export const AI_MODELS: Record<string, AIModel> = {
     name: "Nova",
     personality: "enthusiastic and optimistic, enjoys exploring new ideas",
     color: "#FF1493",
-    modelId: "cohere/command-r-plus"
+    modelId: "amazon/nova-micro-v1"
   }
 };
