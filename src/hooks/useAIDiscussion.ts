@@ -14,7 +14,14 @@ export function useAIDiscussion(
   selectedModels: string[],
   apiKey: string
 ) {
-  const [messages, setMessages] = useState<ChatMessage[]>([]);
+  // Initialize with a default user message to ensure at least one exists
+  const [messages, setMessages] = useState<ChatMessage[]>([
+    {
+      role: "user",
+      content: "The topic for discussion is: General Discussion",
+      name: "You"
+    }
+  ]);
   const [isReady, setIsReady] = useState(false);
   const [isPaused, setIsPaused] = useState(false);
   const [isGenerating, setIsGenerating] = useState(false);
@@ -27,21 +34,23 @@ export function useAIDiscussion(
   };
 
   useEffect(() => {
-    console.log("useEffect triggered with topic:", topic, "selectedModels:", selectedModels);
-    // Ensure topic and selectedModels are arrays and have enough models
+    console.log("useAIDiscussion mounted with topic:", topic, "selectedModels:", selectedModels);
     const effectiveTopic = topic || "General Discussion";
     const effectiveModels = Array.isArray(selectedModels) && selectedModels.length >= 2 
       ? selectedModels 
       : Object.keys(AI_MODELS).slice(0, 2);
 
-    const initialMessage: ChatMessage = {
-      role: "user",
-      content: `The topic for discussion is: "${effectiveTopic}"`,
-      name: "You"
-    };
+    // Update the initial message if a topic is provided
     setMessages(prevMessages => {
-      const newMessages = [initialMessage, ...prevMessages];
-      console.log("Initial messages set:", newMessages);
+      const newMessages = [
+        {
+          role: "user",
+          content: `The topic for discussion is: "${effectiveTopic}"`,
+          name: "You"
+        },
+        ...prevMessages.slice(1) // Preserve any subsequent messages
+      ];
+      console.log("Messages updated with topic:", newMessages);
       setIsReady(true);
       return newMessages;
     });
@@ -66,7 +75,10 @@ export function useAIDiscussion(
 
   useEffect(() => {
     if (messages.length > 1 && topic) {
-      saveConversation(topic || "General Discussion", messages, selectedModels || Object.keys(AI_MODELS).slice(0, 2));
+      const effectiveModels = Array.isArray(selectedModels) && selectedModels.length >= 2 
+        ? selectedModels 
+        : Object.keys(AI_MODELS).slice(0, 2);
+      saveConversation(topic || "General Discussion", messages, effectiveModels);
     }
   }, [messages, topic, selectedModels]);
 
@@ -82,7 +94,10 @@ export function useAIDiscussion(
   }, [apiKey]);
 
   const startGeneratingResponses = async () => {
-    if (isGenerating || !isReady) return;
+    if (isGenerating || !isReady) {
+      console.log("Not starting generation - isGenerating:", isGenerating, "isReady:", isReady);
+      return;
+    }
 
     const effectiveApiKey = getEffectiveApiKey();
     if (!effectiveApiKey || !effectiveApiKey.startsWith('sk-or-')) {
@@ -94,8 +109,9 @@ export function useAIDiscussion(
     setIsGenerating(true);
     currentDiscussionRef.current = true;
 
-    console.log("Starting generation with messages:", messages);
+    // Ensure a user message exists before proceeding
     if (!messages.some(msg => msg.role === "user")) {
+      console.warn("No user message found, setting fallback");
       const initialMessage: ChatMessage = {
         role: "user",
         content: `The topic for discussion is: "${topic || 'general banter'}"`,
@@ -109,13 +125,17 @@ export function useAIDiscussion(
       await new Promise(resolve => setTimeout(resolve, 200));
     }
 
+    const effectiveModels = Array.isArray(selectedModels) && selectedModels.length >= 2 
+      ? selectedModels 
+      : Object.keys(AI_MODELS).slice(0, 2);
+
     const generateCycle = async () => {
       if (!currentDiscussionRef.current || isPaused) {
         setIsGenerating(false);
         return;
       }
 
-      for (const modelId of selectedModels) {
+      for (const modelId of effectiveModels) {
         if (!currentDiscussionRef.current || isPaused) {
           setIsGenerating(false);
           return;
