@@ -4,7 +4,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Key } from "lucide-react";
 import { toast } from "sonner";
-import { storeApiKey } from "@/services/openRouterService";
+import { storeApiKey, getApiKey } from "@/services/openRouterService";
 
 interface ApiKeyInputProps {
   onApiKeySubmit: (apiKey: string) => void;
@@ -13,32 +13,40 @@ interface ApiKeyInputProps {
 const ApiKeyInput: React.FC<ApiKeyInputProps> = ({ onApiKeySubmit }) => {
   const [apiKey, setApiKey] = useState("");
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [isLoading, setIsLoading] = useState(true);
 
-  // On component mount, check if there's a key in the URL parameters
+  // On component mount, check for API key from various sources
   useEffect(() => {
-    const urlParams = new URLSearchParams(window.location.search);
-    const keyFromUrl = urlParams.get('key');
-    
-    if (keyFromUrl) {
-      // If a key is found in the URL, use it
-      setApiKey(keyFromUrl);
-      // Clean the URL without refreshing the page
-      window.history.replaceState({}, document.title, window.location.pathname);
+    async function checkForApiKey() {
+      setIsLoading(true);
+      try {
+        // Try to get key from Supabase or localStorage
+        const key = await getApiKey();
+        if (key && key.startsWith('sk-or-')) {
+          onApiKeySubmit(key);
+          return;
+        }
+      } catch (error) {
+        console.error("Error fetching API key:", error);
+        // If we couldn't get a key from Supabase, check URL params
+        const urlParams = new URLSearchParams(window.location.search);
+        const keyFromUrl = urlParams.get('key');
+        
+        if (keyFromUrl && keyFromUrl.startsWith('sk-or-')) {
+          setApiKey(keyFromUrl);
+          storeApiKey(keyFromUrl);
+          onApiKeySubmit(keyFromUrl);
+          // Clean the URL without refreshing the page
+          window.history.replaceState({}, document.title, window.location.pathname);
+          return;
+        }
+      } finally {
+        setIsLoading(false);
+      }
     }
     
-    // Check if we already have a stored key
-    const storedKey = localStorage.getItem("openrouter_api_key");
-    if (storedKey && storedKey.startsWith('sk-or-')) {
-      onApiKeySubmit(storedKey);
-    }
+    checkForApiKey();
   }, [onApiKeySubmit]);
-
-  // If apiKey is set by URL parameter, automatically submit it
-  useEffect(() => {
-    if (apiKey && apiKey.startsWith('sk-or-')) {
-      handleSubmit();
-    }
-  }, [apiKey]);
 
   const handleSubmit = () => {
     if (!apiKey) return;
@@ -62,6 +70,24 @@ const ApiKeyInput: React.FC<ApiKeyInputProps> = ({ onApiKeySubmit }) => {
       setIsSubmitting(false);
     }, 600);
   };
+
+  if (isLoading) {
+    return (
+      <div className="max-w-md mx-auto">
+        <div className="glass-card p-6 rounded-xl space-y-6 shadow-lg animate-fade-in">
+          <div className="text-center mb-4">
+            <div className="inline-flex items-center justify-center w-16 h-16 rounded-full bg-primary/10 mb-4">
+              <Key className="w-8 h-8 text-primary animate-pulse" />
+            </div>
+            <h2 className="text-xl font-semibold text-gray-800">Connecting to OpenRouter</h2>
+            <p className="text-sm text-gray-500 mt-1">
+              Retrieving API key from server...
+            </p>
+          </div>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="max-w-md mx-auto">

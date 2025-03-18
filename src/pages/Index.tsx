@@ -9,35 +9,33 @@ import { SavedConversation } from "@/hooks/useAIDiscussion";
 import { Toaster } from "@/components/ui/sonner";
 import { Button } from "@/components/ui/button";
 import { ArrowLeft } from "lucide-react";
-import { storeApiKey } from "@/services/openRouterService";
+import { storeApiKey, getApiKey } from "@/services/openRouterService";
 
 const Index = () => {
-  const [apiKey, setApiKey] = useState<string>(() => {
-    // Check if we have a stored API key in localStorage on component mount
-    return localStorage.getItem("openrouter_api_key") || "";
-  });
+  const [apiKey, setApiKey] = useState<string>("");
+  const [apiKeyChecked, setApiKeyChecked] = useState<boolean>(false);
   const [topic, setTopic] = useState("");
   const [selectedModels, setSelectedModels] = useState<string[]>(
     Object.keys(AI_MODELS).slice(0, 3) // Default to first 3 models
   );
   const [showSavedConversations, setShowSavedConversations] = useState(false);
   
-  // Process URL parameters for API key if present
+  // Try to get API key on component mount
   useEffect(() => {
-    const urlParams = new URLSearchParams(window.location.search);
-    const keyFromUrl = urlParams.get('key');
+    async function initializeApiKey() {
+      try {
+        const key = await getApiKey();
+        if (key) {
+          setApiKey(key);
+        }
+      } catch (error) {
+        console.error("Failed to get API key:", error);
+      } finally {
+        setApiKeyChecked(true);
+      }
+    }
     
-    if (keyFromUrl && keyFromUrl.startsWith('sk-or-')) {
-      setApiKey(keyFromUrl);
-      storeApiKey(keyFromUrl);
-      // Clean the URL without refreshing the page
-      window.history.replaceState({}, document.title, window.location.pathname);
-    }
-
-    // Check if we were passed an API key directly
-    if (apiKey && apiKey.startsWith('sk-or-')) {
-      storeApiKey(apiKey);
-    }
+    initializeApiKey();
   }, []);
   
   const handleApiKeySubmit = (key: string) => {
@@ -66,13 +64,17 @@ const Index = () => {
     setShowSavedConversations(prev => !prev);
   };
 
-  // If we already have an API key, skip the input screen
-  useEffect(() => {
-    const storedKey = localStorage.getItem("openrouter_api_key");
-    if (storedKey && storedKey.startsWith('sk-or-')) {
-      setApiKey(storedKey);
-    }
-  }, []);
+  // Show loading spinner while checking for API key
+  if (!apiKeyChecked) {
+    return (
+      <div className="min-h-screen flex items-center justify-center bg-gradient-to-b from-blue-50 to-indigo-50">
+        <div className="text-center">
+          <div className="animate-spin h-8 w-8 border-4 border-primary border-t-transparent rounded-full mx-auto mb-4"></div>
+          <p className="text-gray-600">Initializing application...</p>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="min-h-screen flex flex-col bg-gradient-to-b from-blue-50 to-indigo-50">

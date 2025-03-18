@@ -24,7 +24,18 @@ serve(async (req) => {
       );
     }
 
-    // Return the API key (in a real app you would handle authorization properly)
+    // Validate key format
+    if (!key.startsWith('sk-or-')) {
+      return new Response(
+        JSON.stringify({ error: "Invalid API key format. Must start with 'sk-or-'" }),
+        {
+          headers: { ...corsHeaders, "Content-Type": "application/json" },
+          status: 400,
+        }
+      );
+    }
+
+    // Return the API key
     return new Response(
       JSON.stringify({ key }),
       {

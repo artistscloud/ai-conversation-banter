@@ -17,14 +17,39 @@ interface OpenRouterResponse {
   }[];
 }
 
-// Check if we have a stored API key in localStorage
-const getStoredApiKey = (): string | null => {
-  return localStorage.getItem("openrouter_api_key");
-};
-
 // Store the API key in localStorage
 export const storeApiKey = (apiKey: string): void => {
   localStorage.setItem("openrouter_api_key", apiKey);
+};
+
+// Get API key - first try localStorage, then try Supabase Edge Function
+export const getApiKey = async (): Promise<string> => {
+  // First check localStorage
+  const localKey = localStorage.getItem("openrouter_api_key");
+  if (localKey && localKey.startsWith('sk-or-')) {
+    return localKey;
+  }
+  
+  // If not in localStorage, try to get from Supabase Edge Function
+  try {
+    const { data, error } = await supabase.functions.invoke('set-openrouter-key');
+    
+    if (error) {
+      console.error('Error fetching API key from Supabase:', error);
+      throw new Error('Could not fetch API key from server');
+    }
+    
+    if (data && data.key && data.key.startsWith('sk-or-')) {
+      // Store the key in localStorage for future use
+      storeApiKey(data.key);
+      return data.key;
+    } else {
+      throw new Error('Invalid API key format received from server');
+    }
+  } catch (error) {
+    console.error('Error fetching API key:', error);
+    throw error;
+  }
 };
 
 export async function generateResponse(
@@ -33,10 +58,19 @@ export async function generateResponse(
   apiKey?: string
 ): Promise<string> {
   try {
-    // First check for the provided apiKey, then check localStorage
-    let effectiveApiKey = apiKey || getStoredApiKey();
+    // First use provided key, then localStorage, then try to fetch from Supabase
+    let effectiveApiKey = apiKey;
+    
+    if (!effectiveApiKey || !effectiveApiKey.startsWith('sk-or-')) {
+      try {
+        effectiveApiKey = await getApiKey();
+      } catch (error) {
+        console.error('Failed to get API key:', error);
+        throw new Error('Valid OpenRouter API key is required (should start with sk-or-)');
+      }
+    }
 
-    // Check if API key is provided and has the right format
+    // Check if API key is valid
     if (!effectiveApiKey || !effectiveApiKey.startsWith('sk-or-')) {
       console.error('Invalid or missing OpenRouter API key');
       throw new Error('Valid OpenRouter API key is required (should start with sk-or-)');
