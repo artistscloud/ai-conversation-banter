@@ -4,7 +4,11 @@ import { AI_MODELS } from "@/config/aiModels";
 import ApiKeyInput from "@/components/ApiKeyInput";
 import TopicInput from "@/components/TopicInput";
 import ChatInterface from "@/components/ChatInterface";
+import SavedConversations from "@/components/SavedConversations";
+import { SavedConversation } from "@/hooks/useAIDiscussion";
 import { Toaster } from "@/components/ui/sonner";
+import { Button } from "@/components/ui/button";
+import { ArrowLeft } from "lucide-react";
 
 const Index = () => {
   const [apiKey, setApiKey] = useState("");
@@ -12,6 +16,7 @@ const Index = () => {
   const [selectedModels, setSelectedModels] = useState<string[]>(
     Object.keys(AI_MODELS).slice(0, 3) // Default to first 3 models
   );
+  const [showSavedConversations, setShowSavedConversations] = useState(false);
   
   const handleApiKeySubmit = (key: string) => {
     setApiKey(key);
@@ -20,10 +25,22 @@ const Index = () => {
   const handleStartDiscussion = (newTopic: string, models: string[]) => {
     setTopic(newTopic);
     setSelectedModels(models);
+    setShowSavedConversations(false);
   };
   
   const handleReset = () => {
     setTopic("");
+    setShowSavedConversations(false);
+  };
+
+  const handleLoadConversation = (conversation: SavedConversation) => {
+    setTopic(conversation.topic);
+    setSelectedModels(conversation.selectedModels);
+    setShowSavedConversations(false);
+  };
+
+  const handleToggleSavedConversations = () => {
+    setShowSavedConversations(prev => !prev);
   };
 
   return (
@@ -38,20 +55,57 @@ const Index = () => {
       <main className="flex-1 flex flex-col max-w-4xl w-full mx-auto px-4 pb-10">
         {!apiKey ? (
           <ApiKeyInput onApiKeySubmit={handleApiKeySubmit} />
+        ) : showSavedConversations ? (
+          <div className="glass-card rounded-xl overflow-hidden shadow-lg flex flex-col">
+            <div className="bg-primary/10 px-4 py-3 border-b border-gray-100 flex items-center">
+              <Button
+                variant="ghost"
+                size="sm"
+                onClick={handleToggleSavedConversations}
+                className="mr-2"
+              >
+                <ArrowLeft className="h-4 w-4 mr-1" /> Back
+              </Button>
+              <h3 className="font-medium text-gray-800">Saved Conversations</h3>
+            </div>
+            <div className="p-4">
+              <SavedConversations onLoadConversation={handleLoadConversation} />
+            </div>
+          </div>
         ) : !topic ? (
-          <TopicInput 
-            onStartDiscussion={handleStartDiscussion}
-            initialSelectedModels={selectedModels}
-          />
+          <div className="flex flex-col space-y-4">
+            <TopicInput 
+              onStartDiscussion={handleStartDiscussion}
+              initialSelectedModels={selectedModels}
+            />
+            <div className="text-center">
+              <Button
+                variant="outline"
+                onClick={handleToggleSavedConversations}
+                className="mx-auto"
+              >
+                View Saved Conversations
+              </Button>
+            </div>
+          </div>
         ) : (
           <div className="glass-card rounded-xl overflow-hidden shadow-lg h-[600px] flex flex-col">
-            <div className="bg-primary/10 px-4 py-3 border-b border-gray-100">
-              <h3 className="font-medium text-gray-800">
-                Discussion: <span className="text-primary">{topic}</span>
-              </h3>
-              <p className="text-xs text-gray-500">
-                {selectedModels.length} AI models participating
-              </p>
+            <div className="bg-primary/10 px-4 py-3 border-b border-gray-100 flex justify-between items-center">
+              <div>
+                <h3 className="font-medium text-gray-800">
+                  Discussion: <span className="text-primary">{topic}</span>
+                </h3>
+                <p className="text-xs text-gray-500">
+                  {selectedModels.length} AI models participating
+                </p>
+              </div>
+              <Button
+                variant="ghost"
+                size="sm"
+                onClick={handleToggleSavedConversations}
+              >
+                Saved Chats
+              </Button>
             </div>
             <ChatInterface
               topic={topic}

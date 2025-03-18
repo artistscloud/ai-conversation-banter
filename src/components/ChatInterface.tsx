@@ -44,6 +44,8 @@ const ChatInterface: React.FC<ChatInterfaceProps> = ({
         <ChatControls 
           messages={messages}
           isPaused={isPaused}
+          topic={topic}
+          selectedModels={selectedModels}
           togglePause={togglePause}
           onReset={onReset}
         />

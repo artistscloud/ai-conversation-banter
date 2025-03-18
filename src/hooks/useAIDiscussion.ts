@@ -9,6 +9,84 @@ export interface ChatMessage extends Message {
   animationComplete?: boolean;
 }
 
+export interface SavedConversation {
+  id: string;
+  topic: string;
+  messages: ChatMessage[];
+  selectedModels: string[];
+  createdAt: string;
+}
+
+// Function to save the current conversation to localStorage
+export const saveConversation = (
+  topic: string,
+  messages: ChatMessage[],
+  selectedModels: string[]
+): string => {
+  try {
+    // Create a unique ID for this conversation
+    const conversationId = `conversation_${Date.now()}`;
+    
+    const savedConversation: SavedConversation = {
+      id: conversationId,
+      topic,
+      messages,
+      selectedModels,
+      createdAt: new Date().toISOString(),
+    };
+    
+    // Get existing conversations or initialize empty array
+    const savedConversations = getSavedConversations();
+    
+    // Add this conversation and save back to localStorage
+    localStorage.setItem(
+      "aiConversations", 
+      JSON.stringify([...savedConversations, savedConversation])
+    );
+    
+    return conversationId;
+  } catch (error) {
+    console.error("Error saving conversation:", error);
+    toast.error("Failed to save conversation");
+    return "";
+  }
+};
+
+// Function to get all saved conversations
+export const getSavedConversations = (): SavedConversation[] => {
+  try {
+    const saved = localStorage.getItem("aiConversations");
+    return saved ? JSON.parse(saved) : [];
+  } catch (error) {
+    console.error("Error loading conversations:", error);
+    return [];
+  }
+};
+
+// Function to load a specific conversation
+export const loadConversation = (id: string): SavedConversation | null => {
+  try {
+    const conversations = getSavedConversations();
+    return conversations.find(conv => conv.id === id) || null;
+  } catch (error) {
+    console.error("Error loading conversation:", error);
+    return null;
+  }
+};
+
+// Function to delete a conversation
+export const deleteConversation = (id: string): boolean => {
+  try {
+    const conversations = getSavedConversations();
+    const filtered = conversations.filter(conv => conv.id !== id);
+    localStorage.setItem("aiConversations", JSON.stringify(filtered));
+    return true;
+  } catch (error) {
+    console.error("Error deleting conversation:", error);
+    return false;
+  }
+};
+
 export function useAIDiscussion(
   topic: string,
   selectedModels: string[],
@@ -17,6 +95,7 @@ export function useAIDiscussion(
   const [messages, setMessages] = useState<ChatMessage[]>([]);
   const [isPaused, setIsPaused] = useState(false);
   const [isGenerating, setIsGenerating] = useState(false);
+  const [conversationId, setConversationId] = useState<string>("");
   const currentDiscussionRef = useRef<boolean>(true);
   const generationLoopRef = useRef<any>(null);
 
@@ -36,12 +115,27 @@ export function useAIDiscussion(
     }
     
     return () => {
+      // Auto-save conversation when component unmounts
+      if (messages.length > 1 && topic) {
+        saveConversation(topic, messages, selectedModels);
+      }
+      
       currentDiscussionRef.current = false;
       if (generationLoopRef.current) {
         clearTimeout(generationLoopRef.current);
       }
     };
   }, [topic, selectedModels, apiKey]);
+
+  // Auto-save conversation when messages change
+  useEffect(() => {
+    if (messages.length > 1 && topic) {
+      const id = saveConversation(topic, messages, selectedModels);
+      if (id && !conversationId) {
+        setConversationId(id);
+      }
+    }
+  }, [messages, topic, selectedModels]);
 
   const startGeneratingResponses = async () => {
     if (isGenerating) return; // Prevent multiple instances
@@ -172,6 +266,7 @@ export function useAIDiscussion(
     messages,
     isPaused,
     isGenerating,
+    conversationId,
     togglePause,
     addUserMessage,
     getMessagePosition,

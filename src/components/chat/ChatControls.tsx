@@ -2,13 +2,15 @@
 import React from "react";
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
-import { Play, Pause, Download, X } from "lucide-react";
+import { Play, Pause, Download, X, Save } from "lucide-react";
 import { toast } from "sonner";
-import { ChatMessage } from "@/hooks/useAIDiscussion";
+import { ChatMessage, saveConversation } from "@/hooks/useAIDiscussion";
 
 interface ChatControlsProps {
   messages: ChatMessage[];
   isPaused: boolean;
+  topic: string;
+  selectedModels: string[];
   togglePause: () => void;
   onReset: () => void;
 }
@@ -16,6 +18,8 @@ interface ChatControlsProps {
 const ChatControls: React.FC<ChatControlsProps> = ({
   messages,
   isPaused,
+  topic,
+  selectedModels,
   togglePause,
   onReset
 }) => {
@@ -42,8 +46,17 @@ const ChatControls: React.FC<ChatControlsProps> = ({
     toast.success("Transcript downloaded successfully");
   };
 
+  const handleSaveConversation = () => {
+    if (messages.length > 1 && topic) {
+      saveConversation(topic, messages, selectedModels);
+      toast.success("Conversation saved successfully");
+    } else {
+      toast.error("Cannot save empty conversation");
+    }
+  };
+
   return (
-    <div className="flex gap-2">
+    <div className="flex gap-2 flex-wrap">
       <Button
         variant="outline"
         size="sm"
@@ -71,6 +84,15 @@ const ChatControls: React.FC<ChatControlsProps> = ({
         className="flex-1 bg-violet-50 hover:bg-violet-100 text-violet-700"
       >
         <Download className="h-4 w-4 mr-1" /> Download
+      </Button>
+
+      <Button
+        variant="outline"
+        size="sm"
+        onClick={handleSaveConversation}
+        className="flex-1 bg-blue-50 hover:bg-blue-100 text-blue-700"
+      >
+        <Save className="h-4 w-4 mr-1" /> Save
       </Button>
       
       <Button
