@@ -1,4 +1,3 @@
-
 import { supabase } from "@/integrations/supabase/client";
 import { ChatMessage } from "@/hooks/useAIDiscussion";
 import { Json } from "@/integrations/supabase/types";
@@ -28,11 +27,10 @@ export const saveConversation = async (
   selectedModels: string[]
 ): Promise<string> => {
   try {
-    // Check if we already have a conversation with this topic
-    // in localStorage to maintain backwards compatibility
+    // Check if we already have a conversation with this topic in localStorage
     const existingConvs = localStorage.getItem("aiConversations");
     let existingId = "";
-    
+
     if (existingConvs) {
       const conversations = JSON.parse(existingConvs) as SavedConversation[];
       const existing = conversations.find(c => c.topic === topic);
@@ -40,12 +38,12 @@ export const saveConversation = async (
         existingId = existing.id;
       }
     }
-    
-    // Insert into Supabase
+
+    // Insert into Supabase with a proper UUID if no existing ID
     const { data, error } = await supabase
       .from('ai_conversations')
       .upsert({
-        id: existingId || undefined,
+        id: existingId || crypto.randomUUID(), // Generate UUID for new entries
         topic,
         messages: convertMessagesToJson(messages),
         selected_models: selectedModels,
@@ -54,17 +52,20 @@ export const saveConversation = async (
       })
       .select('id')
       .single();
-    
+
     if (error) {
-      console.error("Error saving conversation to Supabase:", error);
+      console.error("Error saving conversation to Supabase:", error.message, error.details);
+      if (error.code === '42501') {
+        console.warn("Permission denied - check Supabase anon key or RLS policies");
+      }
       // Fallback to localStorage if Supabase fails
       return saveToLocalStorage(topic, messages, selectedModels, existingId);
     }
-    
+
     console.log("Conversation saved to Supabase:", data);
     return data.id;
   } catch (error) {
-    console.error("Error saving conversation:", error);
+    console.error("Unexpected error saving conversation:", error);
     // Fallback to localStorage if Supabase fails
     return saveToLocalStorage(topic, messages, selectedModels);
   }
@@ -78,9 +79,7 @@ const saveToLocalStorage = (
   existingId?: string
 ): string => {
   try {
-    // Create a unique ID for this conversation
-    const conversationId = existingId || `conversation_${Date.now()}`;
-    
+    const conversationId = existingId || crypto.randomUUID(); // Use UUID instead of timestamp
     const savedConversation: SavedConversation = {
       id: conversationId,
       topic,
@@ -88,21 +87,18 @@ const saveToLocalStorage = (
       selectedModels,
       createdAt: new Date().toISOString(),
     };
-    
-    // Get existing conversations or initialize empty array
+
     const savedConversations = getSavedConversationsFromLocalStorage();
-    
-    // Filter out the conversation if it exists already
     const filteredConversations = savedConversations.filter(
       conv => conv.id !== conversationId
     );
-    
-    // Add this conversation and save back to localStorage
+
     localStorage.setItem(
-      "aiConversations", 
+      "aiConversations",
       JSON.stringify([...filteredConversations, savedConversation])
     );
-    
+
+    console.log("Conversation saved to localStorage with ID:", conversationId);
     return conversationId;
   } catch (error) {
     console.error("Error saving conversation to localStorage:", error);
@@ -113,19 +109,16 @@ const saveToLocalStorage = (
 // Get saved conversations from Supabase
 export const getSavedConversations = async (): Promise<SavedConversation[]> => {
   try {
-    // First try to get from Supabase
     const { data, error } = await supabase
       .from('ai_conversations')
       .select('*')
       .order('created_at', { ascending: false });
-    
+
     if (error) {
-      console.error("Error fetching conversations from Supabase:", error);
-      // Fallback to localStorage
+      console.error("Error fetching conversations from Supabase:", error.message, error.details);
       return getSavedConversationsFromLocalStorage();
     }
-    
-    // Format the data to match our SavedConversation interface
+
     const conversations: SavedConversation[] = data.map(conv => ({
       id: conv.id,
       topic: conv.topic,
@@ -133,19 +126,17 @@ export const getSavedConversations = async (): Promise<SavedConversation[]> => {
       selectedModels: conv.selected_models,
       createdAt: conv.created_at
     }));
-    
+
     console.log("Fetched conversations from Supabase:", conversations.length);
-    
-    // Merge with localStorage data for backwards compatibility
+
     const localConversations = getSavedConversationsFromLocalStorage();
     const supabaseIds = new Set(conversations.map(c => c.id));
-    
-    // Only add local conversations that aren't already in Supabase
+
     const mergedConversations: SavedConversation[] = [
       ...conversations,
       ...localConversations.filter(c => !c.id.includes('-') && !supabaseIds.has(c.id))
     ];
-    
+
     return mergedConversations;
   } catch (error) {
     console.error("Error fetching conversations:", error);
@@ -167,16 +158,15 @@ const getSavedConversationsFromLocalStorage = (): SavedConversation[] => {
 // Load a specific conversation
 export const loadConversation = async (id: string): Promise<SavedConversation | null> => {
   try {
-    // Try to fetch from Supabase first
     if (id.includes('-')) {
       const { data, error } = await supabase
         .from('ai_conversations')
         .select('*')
         .eq('id', id)
         .single();
-      
+
       if (error) {
-        console.error("Error loading conversation from Supabase:", error);
+        console.error("Error loading conversation from Supabase:", error.message, error.details);
       } else if (data) {
         return {
           id: data.id,
@@ -187,8 +177,7 @@ export const loadConversation = async (id: string): Promise<SavedConversation | 
         };
       }
     }
-    
-    // Fallback to localStorage
+
     const conversations = getSavedConversationsFromLocalStorage();
     return conversations.find(conv => conv.id === id) || null;
   } catch (error) {
@@ -200,24 +189,21 @@ export const loadConversation = async (id: string): Promise<SavedConversation | 
 // Delete a conversation
 export const deleteConversation = async (id: string): Promise<boolean> => {
   try {
-    // If it's a UUID, delete from Supabase
     if (id.includes('-')) {
       const { error } = await supabase
         .from('ai_conversations')
         .delete()
         .eq('id', id);
-      
+
       if (error) {
-        console.error("Error deleting conversation from Supabase:", error);
-        // Try localStorage as fallback
+        console.error("Error deleting conversation from Supabase:", error.message, error.details);
         return deleteFromLocalStorage(id);
       }
-      
+
       console.log("Conversation deleted from Supabase:", id);
       return true;
     }
-    
-    // Otherwise delete from localStorage
+
     return deleteFromLocalStorage(id);
   } catch (error) {
     console.error("Error deleting conversation:", error);
