@@ -13,7 +13,7 @@ export const AI_MODELS: Record<string, AIModel> = {
     name: "Claude",
     personality: "analytical and precise, often citing research",
     color: "#0066CC",
-    modelId: "anthropic/claude-3-opus"
+    modelId: "anthropic/claude-3.5-haiku"
   },
   grok: {
     id: "grok",
