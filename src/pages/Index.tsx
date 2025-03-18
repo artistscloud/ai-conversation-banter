@@ -1,12 +1,73 @@
-// Update this page (the content is just a fallback if you fail to update the page)
+
+import React, { useState } from "react";
+import { AI_MODELS } from "@/config/aiModels";
+import ApiKeyInput from "@/components/ApiKeyInput";
+import TopicInput from "@/components/TopicInput";
+import ChatInterface from "@/components/ChatInterface";
+import { Toaster } from "@/components/ui/sonner";
 
 const Index = () => {
+  const [apiKey, setApiKey] = useState("");
+  const [topic, setTopic] = useState("");
+  const [selectedModels, setSelectedModels] = useState<string[]>(
+    Object.keys(AI_MODELS).slice(0, 3) // Default to first 3 models
+  );
+  
+  const handleApiKeySubmit = (key: string) => {
+    setApiKey(key);
+  };
+  
+  const handleStartDiscussion = (newTopic: string, models: string[]) => {
+    setTopic(newTopic);
+    setSelectedModels(models);
+  };
+  
+  const handleReset = () => {
+    setTopic("");
+  };
+
   return (
-    <div className="min-h-screen flex items-center justify-center bg-gray-100">
-      <div className="text-center">
-        <h1 className="text-4xl font-bold mb-4">Welcome to Your Blank App</h1>
-        <p className="text-xl text-gray-600">Start building your amazing project here!</p>
-      </div>
+    <div className="min-h-screen flex flex-col bg-gradient-to-b from-blue-50 to-indigo-50">
+      <header className="py-6 px-4 text-center">
+        <h1 className="text-3xl font-bold text-gray-900">AI Conversation Banter</h1>
+        <p className="text-gray-600 mt-2 max-w-2xl mx-auto">
+          Watch AI models discuss topics with distinct personalities, or join the conversation yourself
+        </p>
+      </header>
+      
+      <main className="flex-1 flex flex-col max-w-4xl w-full mx-auto px-4 pb-10">
+        {!apiKey ? (
+          <ApiKeyInput onApiKeySubmit={handleApiKeySubmit} />
+        ) : !topic ? (
+          <TopicInput 
+            onStartDiscussion={handleStartDiscussion}
+            initialSelectedModels={selectedModels}
+          />
+        ) : (
+          <div className="glass-card rounded-xl overflow-hidden shadow-lg h-[600px] flex flex-col">
+            <div className="bg-primary/10 px-4 py-3 border-b border-gray-100">
+              <h3 className="font-medium text-gray-800">
+                Discussion: <span className="text-primary">{topic}</span>
+              </h3>
+              <p className="text-xs text-gray-500">
+                {selectedModels.length} AI models participating
+              </p>
+            </div>
+            <ChatInterface
+              topic={topic}
+              selectedModels={selectedModels}
+              apiKey={apiKey}
+              onReset={handleReset}
+            />
+          </div>
+        )}
+      </main>
+      
+      <footer className="py-4 px-4 text-center text-gray-500 text-sm">
+        <p>Designed and built with precision and simplicity in mind.</p>
+      </footer>
+      
+      <Toaster position="top-center" />
     </div>
   );
 };
