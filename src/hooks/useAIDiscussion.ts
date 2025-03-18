@@ -1,4 +1,3 @@
-
 import { useState, useRef, useEffect } from "react";
 import { AIModel, AI_MODELS } from "@/config/aiModels";
 import { generateResponse, Message } from "@/services/openRouterService";
@@ -36,19 +35,27 @@ export function useAIDiscussion(
         name: "You" // Adding name property to ensure it's preserved in API calls
       };
       setMessages([initialMessage]);
-      
-      // Small delay to ensure state is updated before generating responses
-      setTimeout(() => {
+      // Wait for state to update before starting
+      const timer = setTimeout(() => {
         startGeneratingResponses();
       }, 100);
+      return () => {
+        clearTimeout(timer);
+        // Auto-save conversation when component unmounts
+        if (messages.length > 1 && topic) {
+          saveConversation(topic, messages, selectedModels);
+        }
+        currentDiscussionRef.current = false;
+        if (generationLoopRef.current) {
+          clearTimeout(generationLoopRef.current);
+        }
+      };
     }
-    
     return () => {
       // Auto-save conversation when component unmounts
       if (messages.length > 1 && topic) {
         saveConversation(topic, messages, selectedModels);
       }
-      
       currentDiscussionRef.current = false;
       if (generationLoopRef.current) {
         clearTimeout(generationLoopRef.current);
@@ -88,6 +95,17 @@ export function useAIDiscussion(
     setIsGenerating(true);
     currentDiscussionRef.current = true;
     
+    // Ensure we have a user message
+    if (!messages.some(msg => msg.role === "user")) {
+      const initialMessage: ChatMessage = {
+        role: "user",
+        content: `The topic for discussion is: "${topic || 'general banter'}"`,
+        name: "You"
+      };
+      setMessages(prev => [initialMessage, ...prev]);
+      await new Promise(resolve => setTimeout(resolve, 100)); // Wait for state
+    }
+
     const generateCycle = async () => {
       if (!currentDiscussionRef.current || isPaused) {
         setIsGenerating(false);
