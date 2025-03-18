@@ -19,8 +19,12 @@ serve(async (req) => {
     const apiKey = Deno.env.get('OPENROUTER_API_KEY');
     
     if (!apiKey) {
+      console.error("No OPENROUTER_API_KEY found in environment variables");
       return new Response(
-        JSON.stringify({ error: 'API key not configured on server' }),
+        JSON.stringify({ 
+          error: 'API key not configured on server',
+          message: 'Please set the OPENROUTER_API_KEY in Supabase secrets'
+        }),
         {
           status: 400,
           headers: {
@@ -30,6 +34,8 @@ serve(async (req) => {
         }
       );
     }
+    
+    console.log("Successfully retrieved OpenRouter API key from environment");
     
     // Return the API key
     return new Response(
@@ -43,9 +49,12 @@ serve(async (req) => {
       }
     );
   } catch (error) {
-    console.error('Error:', error);
+    console.error('Error in set-openrouter-key function:', error);
     return new Response(
-      JSON.stringify({ error: error.message }),
+      JSON.stringify({ 
+        error: error.message,
+        stack: error.stack
+      }),
       {
         status: 500,
         headers: {

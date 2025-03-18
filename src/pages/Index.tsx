@@ -29,6 +29,8 @@ const Index = () => {
         if (key) {
           setApiKey(key);
           console.log("Successfully retrieved API key");
+        } else {
+          console.warn("No API key found - using demo mode");
         }
       } catch (error) {
         console.error("Failed to get API key:", error);
