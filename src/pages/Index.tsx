@@ -5,11 +5,11 @@ import ApiKeyInput from "@/components/ApiKeyInput";
 import TopicInput from "@/components/TopicInput";
 import ChatInterface from "@/components/ChatInterface";
 import SavedConversations from "@/components/SavedConversations";
-import { SavedConversation } from "@/hooks/useAIDiscussion";
 import { Toaster } from "@/components/ui/sonner";
 import { Button } from "@/components/ui/button";
 import { ArrowLeft } from "lucide-react";
 import { storeApiKey, getApiKey } from "@/services/openRouterService";
+import { SavedConversation } from "@/services/conversationService";
 import { toast } from "sonner";
 
 const Index = () => {

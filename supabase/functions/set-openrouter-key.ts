@@ -1,58 +1,57 @@
 
-import { serve } from "https://deno.land/std@0.131.0/http/server.ts";
-import { corsHeaders } from "../_shared/cors.ts";
-
-console.log("Setting up OpenRouter API key function");
+import { corsHeaders } from '../_shared/cors.ts';
+import { serve } from 'https://deno.land/std@0.177.0/http/server.ts';
 
 serve(async (req) => {
   // Handle CORS preflight request
-  if (req.method === "OPTIONS") {
-    return new Response("ok", { headers: corsHeaders });
+  if (req.method === 'OPTIONS') {
+    return new Response(null, {
+      status: 204,
+      headers: {
+        ...corsHeaders,
+        'Access-Control-Max-Age': '86400',
+      },
+    });
   }
 
   try {
-    // Get API key from environment variable
-    const key = Deno.env.get("OPENROUTER_API_KEY");
+    // Get the API key from environment variable
+    const apiKey = Deno.env.get('OPENROUTER_API_KEY');
     
-    if (!key) {
-      console.error("API key not found in environment variables");
+    if (!apiKey) {
       return new Response(
-        JSON.stringify({ error: "API key not found in environment variables" }),
+        JSON.stringify({ error: 'API key not configured on server' }),
         {
-          headers: { ...corsHeaders, "Content-Type": "application/json" },
           status: 400,
+          headers: {
+            ...corsHeaders,
+            'Content-Type': 'application/json',
+          },
         }
       );
     }
-
-    // Validate key format
-    if (!key.startsWith('sk-or-')) {
-      console.error("Invalid API key format");
-      return new Response(
-        JSON.stringify({ error: "Invalid API key format. Must start with 'sk-or-'" }),
-        {
-          headers: { ...corsHeaders, "Content-Type": "application/json" },
-          status: 400,
-        }
-      );
-    }
-
-    console.log("Successfully retrieved OpenRouter API key");
+    
     // Return the API key
     return new Response(
-      JSON.stringify({ key }),
+      JSON.stringify({ key: apiKey }),
       {
-        headers: { ...corsHeaders, "Content-Type": "application/json" },
         status: 200,
+        headers: {
+          ...corsHeaders,
+          'Content-Type': 'application/json',
+        },
       }
     );
   } catch (error) {
-    console.error("Error in set-openrouter-key function:", error.message);
+    console.error('Error:', error);
     return new Response(
       JSON.stringify({ error: error.message }),
       {
-        headers: { ...corsHeaders, "Content-Type": "application/json" },
         status: 500,
+        headers: {
+          ...corsHeaders,
+          'Content-Type': 'application/json',
+        },
       }
     );
   }

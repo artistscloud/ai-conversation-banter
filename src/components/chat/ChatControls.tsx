@@ -4,7 +4,8 @@ import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
 import { Play, Pause, Download, X, Save } from "lucide-react";
 import { toast } from "sonner";
-import { ChatMessage, saveConversation } from "@/hooks/useAIDiscussion";
+import { ChatMessage } from "@/hooks/useAIDiscussion";
+import { saveConversation } from "@/services/conversationService";
 
 interface ChatControlsProps {
   messages: ChatMessage[];
@@ -46,10 +47,19 @@ const ChatControls: React.FC<ChatControlsProps> = ({
     toast.success("Transcript downloaded successfully");
   };
 
-  const handleSaveConversation = () => {
+  const handleSaveConversation = async () => {
     if (messages.length > 1 && topic) {
-      saveConversation(topic, messages, selectedModels);
-      toast.success("Conversation saved successfully");
+      try {
+        const id = await saveConversation(topic, messages, selectedModels);
+        if (id) {
+          toast.success("Conversation saved successfully");
+        } else {
+          toast.error("Failed to save conversation");
+        }
+      } catch (error) {
+        console.error("Error saving conversation:", error);
+        toast.error("Failed to save conversation");
+      }
     } else {
       toast.error("Cannot save empty conversation");
     }
