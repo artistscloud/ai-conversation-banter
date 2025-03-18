@@ -16,9 +16,6 @@ interface OpenRouterResponse {
   }[];
 }
 
-// This should be set through environment variables or user input
-const API_KEY = ""; // Placeholder - user will need to provide their OpenRouter API key
-
 export async function generateResponse(
   model: AIModel,
   messages: Message[],
@@ -36,6 +33,8 @@ Consider and reference what other AIs have said before you (if applicable).`;
       { role: "system", content: systemPrompt },
       ...messages
     ];
+
+    console.log(`Sending request to OpenRouter for model ${model.modelId}`);
 
     const response = await fetch("https://openrouter.ai/api/v1/chat/completions", {
       method: "POST",
@@ -55,6 +54,7 @@ Consider and reference what other AIs have said before you (if applicable).`;
 
     if (!response.ok) {
       const errorText = await response.text();
+      console.error(`OpenRouter API error response: ${errorText}`);
       throw new Error(`OpenRouter API error: ${response.status} ${errorText}`);
     }
 
@@ -62,6 +62,6 @@ Consider and reference what other AIs have said before you (if applicable).`;
     return data.choices[0].message.content;
   } catch (error) {
     console.error(`Error generating response for ${model.name}:`, error);
-    return `*[${model.name} is currently unavailable. Technical difficulties.]*`;
+    throw error; // Rethrow to handle in the component
   }
 }

@@ -33,6 +33,7 @@ const ChatInterface: React.FC<ChatInterfaceProps> = ({
   const [userInput, setUserInput] = useState("");
   const messagesContainerRef = useRef<HTMLDivElement>(null);
   const currentDiscussionRef = useRef<boolean>(true);
+  const generationLoopRef = useRef<any>(null);
 
   // Initialize the conversation with a topic
   useEffect(() => {
@@ -42,13 +43,20 @@ const ChatInterface: React.FC<ChatInterfaceProps> = ({
         content: `The topic for discussion is: "${topic}"`,
       };
       setMessages([initialMessage]);
-      startGeneratingResponses();
+      
+      // Small delay to ensure state is updated before generating responses
+      setTimeout(() => {
+        startGeneratingResponses();
+      }, 100);
     }
     
     return () => {
       currentDiscussionRef.current = false;
+      if (generationLoopRef.current) {
+        clearTimeout(generationLoopRef.current);
+      }
     };
-  }, [topic, selectedModels, apiKey]);
+  }, [topic, selectedModels]);
 
   // Auto scroll to bottom when messages change
   useEffect(() => {
@@ -58,12 +66,22 @@ const ChatInterface: React.FC<ChatInterfaceProps> = ({
   }, [messages]);
 
   const startGeneratingResponses = async () => {
+    if (isGenerating) return; // Prevent multiple instances
+    
     setIsGenerating(true);
     currentDiscussionRef.current = true;
-
-    while (currentDiscussionRef.current && !isPaused) {
+    
+    const generateCycle = async () => {
+      if (!currentDiscussionRef.current || isPaused) {
+        setIsGenerating(false);
+        return;
+      }
+      
       for (const modelId of selectedModels) {
-        if (!currentDiscussionRef.current || isPaused) break;
+        if (!currentDiscussionRef.current || isPaused) {
+          setIsGenerating(false);
+          return;
+        }
 
         try {
           const model = AI_MODELS[modelId];
@@ -75,8 +93,15 @@ const ChatInterface: React.FC<ChatInterfaceProps> = ({
             name: msg.name
           }));
 
+          console.log(`Generating response for ${model.name} using model ${model.modelId}`);
+          
           // Generate response from the model
           const response = await generateResponse(model, historyMessages, apiKey);
+          
+          if (!currentDiscussionRef.current || isPaused) {
+            setIsGenerating(false);
+            return;
+          }
           
           // Add the response to messages
           const newMessage: ChatMessage = {
@@ -90,16 +115,27 @@ const ChatInterface: React.FC<ChatInterfaceProps> = ({
           
           // Add a small delay between responses
           await new Promise(resolve => setTimeout(resolve, 800));
+          
+          if (!currentDiscussionRef.current || isPaused) {
+            setIsGenerating(false);
+            return;
+          }
         } catch (error) {
           console.error(`Error generating response for ${modelId}:`, error);
-          
-          // Only log the error, don't break the conversation
           toast.error(`Error with ${AI_MODELS[modelId].name}'s response`);
         }
       }
-    }
+      
+      // Continue the loop after all models have responded
+      if (currentDiscussionRef.current && !isPaused) {
+        generationLoopRef.current = setTimeout(generateCycle, 1000);
+      } else {
+        setIsGenerating(false);
+      }
+    };
     
-    setIsGenerating(false);
+    // Start the generation cycle
+    await generateCycle();
   };
 
   const togglePause = () => {
@@ -116,6 +152,9 @@ const ChatInterface: React.FC<ChatInterfaceProps> = ({
     
     // Pause ongoing generation if any
     setIsPaused(true);
+    if (generationLoopRef.current) {
+      clearTimeout(generationLoopRef.current);
+    }
     
     // Add user message
     const userMessage: ChatMessage = {
