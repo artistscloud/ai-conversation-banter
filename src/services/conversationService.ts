@@ -1,5 +1,7 @@
+
 import { supabase } from "@/integrations/supabase/client";
 import { ChatMessage } from "@/hooks/useAIDiscussion";
+import { Json } from "@/integrations/supabase/types";
 
 export interface SavedConversation {
   id: string;
@@ -8,6 +10,16 @@ export interface SavedConversation {
   selectedModels: string[];
   createdAt: string;
 }
+
+// Helper function to convert ChatMessage[] to Json for Supabase storage
+const convertMessagesToJson = (messages: ChatMessage[]): Json => {
+  return messages as unknown as Json;
+};
+
+// Helper function to convert Json back to ChatMessage[] when retrieving from Supabase
+const convertJsonToMessages = (json: Json): ChatMessage[] => {
+  return json as unknown as ChatMessage[];
+};
 
 // Save conversation to Supabase
 export const saveConversation = async (
@@ -35,7 +47,7 @@ export const saveConversation = async (
       .upsert({
         id: existingId || undefined,
         topic,
-        messages,
+        messages: convertMessagesToJson(messages),
         selected_models: selectedModels,
         created_at: new Date().toISOString(),
         is_public: false
@@ -114,10 +126,10 @@ export const getSavedConversations = async (): Promise<SavedConversation[]> => {
     }
     
     // Format the data to match our SavedConversation interface
-    const conversations = data.map(conv => ({
+    const conversations: SavedConversation[] = data.map(conv => ({
       id: conv.id,
       topic: conv.topic,
-      messages: conv.messages,
+      messages: convertJsonToMessages(conv.messages),
       selectedModels: conv.selected_models,
       createdAt: conv.created_at
     }));
@@ -126,12 +138,12 @@ export const getSavedConversations = async (): Promise<SavedConversation[]> => {
     
     // Merge with localStorage data for backwards compatibility
     const localConversations = getSavedConversationsFromLocalStorage();
-    const localIds = new Set(localConversations.map(c => c.id));
+    const supabaseIds = new Set(conversations.map(c => c.id));
     
     // Only add local conversations that aren't already in Supabase
-    const mergedConversations = [
+    const mergedConversations: SavedConversation[] = [
       ...conversations,
-      ...localConversations.filter(c => !c.id.includes('-') && !localIds.has(c.id))
+      ...localConversations.filter(c => !c.id.includes('-') && !supabaseIds.has(c.id))
     ];
     
     return mergedConversations;
@@ -169,7 +181,7 @@ export const loadConversation = async (id: string): Promise<SavedConversation | 
         return {
           id: data.id,
           topic: data.topic,
-          messages: data.messages,
+          messages: convertJsonToMessages(data.messages),
           selectedModels: data.selected_models,
           createdAt: data.created_at
         };
