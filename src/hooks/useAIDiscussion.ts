@@ -15,37 +15,40 @@ export function useAIDiscussion(
   apiKey: string
 ) {
   const [messages, setMessages] = useState<ChatMessage[]>([]);
+  const [isReady, setIsReady] = useState(false);
   const [isPaused, setIsPaused] = useState(false);
   const [isGenerating, setIsGenerating] = useState(false);
   const [errors, setErrors] = useState<Record<string, string>>({});
   const currentDiscussionRef = useRef<boolean>(true);
   const generationLoopRef = useRef<any>(null);
 
-  // Get the effective API key (provided or from localStorage)
   const getEffectiveApiKey = (): string => {
     return apiKey || localStorage.getItem("openrouter_api_key") || "";
   };
 
-  // Initialize the conversation with a topic
   useEffect(() => {
-    if (topic && selectedModels.length >= 2) {
-      const initialMessage: ChatMessage = {
-        role: "user",
-        content: `The topic for discussion is: "${topic}"`,
-        name: "You"
-      };
-      setMessages(prevMessages => {
-        const newMessages = [initialMessage, ...prevMessages];
-        console.log("Initial messages set:", newMessages); // Debug
-        startGeneratingResponses(); // Start after state is updated
-        return newMessages;
-      });
-    }
-    
+    console.log("useEffect triggered with topic:", topic, "selectedModels:", selectedModels);
+    // Ensure topic and selectedModels are arrays and have enough models
+    const effectiveTopic = topic || "General Discussion";
+    const effectiveModels = Array.isArray(selectedModels) && selectedModels.length >= 2 
+      ? selectedModels 
+      : Object.keys(AI_MODELS).slice(0, 2);
+
+    const initialMessage: ChatMessage = {
+      role: "user",
+      content: `The topic for discussion is: "${effectiveTopic}"`,
+      name: "You"
+    };
+    setMessages(prevMessages => {
+      const newMessages = [initialMessage, ...prevMessages];
+      console.log("Initial messages set:", newMessages);
+      setIsReady(true);
+      return newMessages;
+    });
+
     return () => {
-      // Auto-save conversation when component unmounts
-      if (messages.length > 1 && topic) {
-        saveConversation(topic, messages, selectedModels);
+      if (messages.length > 1 && effectiveTopic) {
+        saveConversation(effectiveTopic, messages, effectiveModels);
       }
       currentDiscussionRef.current = false;
       if (generationLoopRef.current) {
@@ -54,14 +57,19 @@ export function useAIDiscussion(
     };
   }, [topic, selectedModels, apiKey]);
 
-  // Auto-save conversation when messages change
+  useEffect(() => {
+    if (isReady && !isGenerating) {
+      console.log("isReady triggered, starting generation with messages:", messages);
+      startGeneratingResponses();
+    }
+  }, [isReady]);
+
   useEffect(() => {
     if (messages.length > 1 && topic) {
-      saveConversation(topic, messages, selectedModels);
+      saveConversation(topic || "General Discussion", messages, selectedModels || Object.keys(AI_MODELS).slice(0, 2));
     }
   }, [messages, topic, selectedModels]);
 
-  // Validate API key
   useEffect(() => {
     const effectiveApiKey = getEffectiveApiKey();
     if (!effectiveApiKey) {
@@ -74,7 +82,7 @@ export function useAIDiscussion(
   }, [apiKey]);
 
   const startGeneratingResponses = async () => {
-    if (isGenerating) return;
+    if (isGenerating || !isReady) return;
 
     const effectiveApiKey = getEffectiveApiKey();
     if (!effectiveApiKey || !effectiveApiKey.startsWith('sk-or-')) {
@@ -86,8 +94,7 @@ export function useAIDiscussion(
     setIsGenerating(true);
     currentDiscussionRef.current = true;
 
-    // Ensure we have a user message (debugging)
-    console.log("Current messages before check:", messages);
+    console.log("Starting generation with messages:", messages);
     if (!messages.some(msg => msg.role === "user")) {
       const initialMessage: ChatMessage = {
         role: "user",
@@ -96,10 +103,10 @@ export function useAIDiscussion(
       };
       setMessages(prev => {
         const newMessages = [initialMessage, ...prev];
-        console.log("Fallback messages set:", newMessages); // Debug
+        console.log("Fallback messages set:", newMessages);
         return newMessages;
       });
-      await new Promise(resolve => setTimeout(resolve, 100)); // Wait for state
+      await new Promise(resolve => setTimeout(resolve, 200));
     }
 
     const generateCycle = async () => {
@@ -116,17 +123,13 @@ export function useAIDiscussion(
 
         try {
           const model = AI_MODELS[modelId];
-
-          // Prepare the conversation history for context
           const historyMessages = messages.map(msg => ({
             role: msg.role,
             content: msg.content,
             name: msg.name || (msg.role === "user" ? "You" : undefined)
           }));
 
-          console.log(`Generating response for ${model.name} using model ${model.modelId}`);
-          console.log('Messages being sent to API:', JSON.stringify(historyMessages, null, 2));
-
+          console.log(`Generating response for ${model.name} with messages:`, JSON.stringify(historyMessages, null, 2));
           const response = await generateResponse(model, historyMessages, effectiveApiKey);
 
           if (!currentDiscussionRef.current || isPaused) {
@@ -152,30 +155,20 @@ export function useAIDiscussion(
           }
 
           await new Promise(resolve => setTimeout(resolve, 800));
-
-          if (!currentDiscussionRef.current || isPaused) {
-            setIsGenerating(false);
-            return;
-          }
         } catch (error) {
           const errorMessage = error instanceof Error ? error.message : 'Unknown error';
           console.error(`Error generating response for ${modelId}:`, error);
-
           setErrors(prev => ({
             ...prev,
             [modelId]: errorMessage
           }));
-
           toast.error(`Error with ${AI_MODELS[modelId].name}: ${errorMessage}`);
-
           const errorMsg: ChatMessage = {
             role: "system",
             content: `Error with ${AI_MODELS[modelId].name}'s response: ${errorMessage}`,
             modelId: modelId
           };
-
           setMessages(prev => [...prev, errorMsg]);
-
           await new Promise(resolve => setTimeout(resolve, 800));
         }
       }
@@ -223,11 +216,9 @@ export function useAIDiscussion(
 
   const getMessagePosition = (index: number, message: ChatMessage): "left" | "right" => {
     if (message.role === "user") return "right";
-
     const aiMessageIndex = messages
       .filter(m => m.role === "assistant" && m.modelId)
       .findIndex(m => m.modelId === message.modelId);
-
     return aiMessageIndex % 2 === 0 ? "left" : "right";
   };
 
