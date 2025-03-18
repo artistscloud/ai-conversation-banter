@@ -1,21 +1,19 @@
 
 import React, { useState, useEffect } from "react";
 import { AI_MODELS } from "@/config/aiModels";
-import ApiKeyInput from "@/components/ApiKeyInput";
 import TopicInput from "@/components/TopicInput";
 import ChatInterface from "@/components/ChatInterface";
 import SavedConversations from "@/components/SavedConversations";
 import { Toaster } from "@/components/ui/sonner";
 import { Button } from "@/components/ui/button";
 import { ArrowLeft } from "lucide-react";
-import { storeApiKey, getApiKey } from "@/services/openRouterService";
+import { getApiKey } from "@/services/openRouterService";
 import { SavedConversation } from "@/services/conversationService";
 import { toast } from "sonner";
 
 const Index = () => {
   const [apiKey, setApiKey] = useState<string>("");
-  const [apiKeyChecked, setApiKeyChecked] = useState<boolean>(false);
-  const [apiKeyError, setApiKeyError] = useState<boolean>(false);
+  const [isLoading, setIsLoading] = useState<boolean>(true);
   const [topic, setTopic] = useState("");
   const [selectedModels, setSelectedModels] = useState<string[]>(
     Object.keys(AI_MODELS).slice(0, 3) // Default to first 3 models
@@ -26,47 +24,21 @@ const Index = () => {
   useEffect(() => {
     async function initializeApiKey() {
       try {
-        // Check localStorage first
-        const localKey = localStorage.getItem("openrouter_api_key");
-        if (localKey && localKey.startsWith('sk-or-')) {
-          console.log("Using API key from localStorage");
-          setApiKey(localKey);
-          setApiKeyChecked(true);
-          return;
-        }
-        
-        // Try to get from Supabase
+        setIsLoading(true);
         const key = await getApiKey();
-        if (key && key.startsWith('sk-or-')) {
-          console.log("Successfully retrieved API key");
+        if (key) {
           setApiKey(key);
-          storeApiKey(key);
-          toast.success("Connected to OpenRouter API");
-          setApiKeyChecked(true);
-          return;
+          console.log("Successfully retrieved API key");
         }
-        
-        // If we get here, we couldn't get a valid key
-        setApiKeyError(true);
-        setApiKeyChecked(true);
       } catch (error) {
         console.error("Failed to get API key:", error);
-        setApiKeyError(true);
-        setApiKeyChecked(true);
+      } finally {
+        setIsLoading(false);
       }
     }
     
     initializeApiKey();
   }, []);
-  
-  const handleApiKeySubmit = (key: string) => {
-    if (key && key.startsWith('sk-or-')) {
-      setApiKey(key);
-      storeApiKey(key);
-      setApiKeyError(false);
-      toast.success("API key saved");
-    }
-  };
   
   const handleStartDiscussion = (newTopic: string, models: string[]) => {
     setTopic(newTopic);
@@ -90,7 +62,7 @@ const Index = () => {
   };
 
   // Show loading spinner while checking for API key
-  if (!apiKeyChecked) {
+  if (isLoading) {
     return (
       <div className="min-h-screen flex items-center justify-center bg-gradient-to-b from-blue-50 to-indigo-50">
         <div className="text-center">
@@ -111,26 +83,7 @@ const Index = () => {
       </header>
       
       <main className="flex-1 flex flex-col max-w-4xl w-full mx-auto px-4 pb-10">
-        {apiKeyError && !apiKey ? (
-          <ApiKeyInput onApiKeySubmit={handleApiKeySubmit} />
-        ) : showSavedConversations ? (
-          <div className="glass-card rounded-xl overflow-hidden shadow-lg flex flex-col">
-            <div className="bg-primary/10 px-4 py-3 border-b border-gray-100 flex items-center">
-              <Button
-                variant="ghost"
-                size="sm"
-                onClick={handleToggleSavedConversations}
-                className="mr-2"
-              >
-                <ArrowLeft className="h-4 w-4 mr-1" /> Back
-              </Button>
-              <h3 className="font-medium text-gray-800">Saved Conversations</h3>
-            </div>
-            <div className="p-4">
-              <SavedConversations onLoadConversation={handleLoadConversation} />
-            </div>
-          </div>
-        ) : !topic ? (
+        {!topic ? (
           <div className="flex flex-col space-y-4">
             <TopicInput 
               onStartDiscussion={handleStartDiscussion}
@@ -146,8 +99,25 @@ const Index = () => {
               </Button>
             </div>
           </div>
+        ) : showSavedConversations ? (
+          <div className="rounded-xl overflow-hidden shadow-lg flex flex-col">
+            <div className="bg-primary/10 px-4 py-3 border-b border-gray-100 flex items-center">
+              <Button
+                variant="ghost"
+                size="sm"
+                onClick={handleToggleSavedConversations}
+                className="mr-2"
+              >
+                <ArrowLeft className="h-4 w-4 mr-1" /> Back
+              </Button>
+              <h3 className="font-medium text-gray-800">Saved Conversations</h3>
+            </div>
+            <div className="p-4">
+              <SavedConversations onLoadConversation={handleLoadConversation} />
+            </div>
+          </div>
         ) : (
-          <div className="glass-card rounded-xl overflow-hidden shadow-lg h-[600px] flex flex-col">
+          <div className="rounded-xl overflow-hidden shadow-lg h-[600px] flex flex-col">
             <div className="bg-primary/10 px-4 py-3 border-b border-gray-100 flex justify-between items-center">
               <div>
                 <h3 className="font-medium text-gray-800">
