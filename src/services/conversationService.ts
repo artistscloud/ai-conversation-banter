@@ -57,6 +57,8 @@ export const saveConversation = async (
       console.error("Error saving conversation to Supabase:", error.message, error.details);
       if (error.code === '42501') {
         console.warn("Permission denied - check Supabase anon key or RLS policies");
+      } else if (error.code === '22P02') {
+        console.warn("Invalid UUID format - ensure table schema matches");
       }
       // Fallback to localStorage if Supabase fails
       return saveToLocalStorage(topic, messages, selectedModels, existingId);
@@ -66,7 +68,6 @@ export const saveConversation = async (
     return data.id;
   } catch (error) {
     console.error("Unexpected error saving conversation:", error);
-    // Fallback to localStorage if Supabase fails
     return saveToLocalStorage(topic, messages, selectedModels);
   }
 };
