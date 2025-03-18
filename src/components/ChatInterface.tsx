@@ -1,5 +1,5 @@
 
-import React, { useEffect } from "react";
+import React from "react";
 import { useAIDiscussion } from "@/hooks/useAIDiscussion";
 import MessageList from "./chat/MessageList";
 import ChatControls from "./chat/ChatControls";

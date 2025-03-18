@@ -30,10 +30,12 @@ const Index = () => {
           setApiKey(key);
           console.log("Successfully retrieved API key");
         } else {
-          console.warn("No API key found - using demo mode");
+          console.error("Failed to retrieve API key - no key returned");
+          toast.error("Failed to connect to OpenRouter API. Please check Supabase Edge Function logs.");
         }
       } catch (error) {
         console.error("Failed to get API key:", error);
+        toast.error(`API key error: ${error instanceof Error ? error.message : 'Unknown error'}`);
       } finally {
         setIsLoading(false);
       }
@@ -69,7 +71,7 @@ const Index = () => {
       <div className="min-h-screen flex items-center justify-center bg-gradient-to-b from-blue-50 to-indigo-50">
         <div className="text-center">
           <div className="animate-spin h-8 w-8 border-4 border-primary border-t-transparent rounded-full mx-auto mb-4"></div>
-          <p className="text-gray-600">Initializing application...</p>
+          <p className="text-gray-600">Connecting to OpenRouter API...</p>
         </div>
       </div>
     );

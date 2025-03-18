@@ -22,7 +22,7 @@ export const storeApiKey = (apiKey: string): void => {
   localStorage.setItem("openrouter_api_key", apiKey);
 };
 
-// Get API key directly from environment variable
+// Get API key from Supabase Edge Function
 export const getApiKey = async (): Promise<string> => {
   // First check localStorage
   const localKey = localStorage.getItem("openrouter_api_key");
@@ -31,14 +31,28 @@ export const getApiKey = async (): Promise<string> => {
     return localKey;
   }
   
-  // Use fallback API key if available in Supabase secrets
-  // This should be set in the Supabase dashboard under Project Settings > API
+  // If not in localStorage, try to get from Supabase Edge Function
   try {
-    console.log("Using API key from Supabase secret");
-    return process.env.OPENROUTER_API_KEY || "";
+    console.log("Fetching API key from Supabase Edge Function");
+    const { data, error } = await supabase.functions.invoke('set-openrouter-key');
+    
+    if (error) {
+      console.error('Error fetching API key from Supabase:', error);
+      throw new Error('Could not fetch API key from server');
+    }
+    
+    if (data && data.key && data.key.startsWith('sk-or-')) {
+      console.log("Successfully retrieved API key from Supabase");
+      // Store the key in localStorage for future use
+      storeApiKey(data.key);
+      return data.key;
+    } else {
+      console.error('Invalid API key format received from server:', data);
+      throw new Error('Invalid API key format received from server');
+    }
   } catch (error) {
-    console.error('Error retrieving API key:', error);
-    throw new Error('Could not retrieve API key');
+    console.error('Error fetching API key:', error);
+    throw error;
   }
 };
 
