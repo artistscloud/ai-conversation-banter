@@ -27,11 +27,13 @@ export const getApiKey = async (): Promise<string> => {
   // First check localStorage
   const localKey = localStorage.getItem("openrouter_api_key");
   if (localKey && localKey.startsWith('sk-or-')) {
+    console.log("Using API key from localStorage");
     return localKey;
   }
   
   // If not in localStorage, try to get from Supabase Edge Function
   try {
+    console.log("Fetching API key from Supabase Edge Function");
     const { data, error } = await supabase.functions.invoke('set-openrouter-key');
     
     if (error) {
@@ -40,10 +42,12 @@ export const getApiKey = async (): Promise<string> => {
     }
     
     if (data && data.key && data.key.startsWith('sk-or-')) {
+      console.log("Successfully retrieved API key from Supabase");
       // Store the key in localStorage for future use
       storeApiKey(data.key);
       return data.key;
     } else {
+      console.error('Invalid API key format received from server:', data);
       throw new Error('Invalid API key format received from server');
     }
   } catch (error) {

@@ -10,6 +10,7 @@ import { Toaster } from "@/components/ui/sonner";
 import { Button } from "@/components/ui/button";
 import { ArrowLeft } from "lucide-react";
 import { storeApiKey, getApiKey } from "@/services/openRouterService";
+import { toast } from "sonner";
 
 const Index = () => {
   const [apiKey, setApiKey] = useState<string>("");
@@ -24,12 +25,26 @@ const Index = () => {
   useEffect(() => {
     async function initializeApiKey() {
       try {
+        // Check localStorage first
+        const localKey = localStorage.getItem("openrouter_api_key");
+        if (localKey && localKey.startsWith('sk-or-')) {
+          console.log("Using API key from localStorage");
+          setApiKey(localKey);
+          setApiKeyChecked(true);
+          return;
+        }
+        
+        // Try to get from Supabase
         const key = await getApiKey();
-        if (key) {
+        if (key && key.startsWith('sk-or-')) {
+          console.log("Successfully retrieved API key");
           setApiKey(key);
+          storeApiKey(key);
+          toast.success("Connected to OpenRouter API");
         }
       } catch (error) {
         console.error("Failed to get API key:", error);
+        // We'll show the API key input form
       } finally {
         setApiKeyChecked(true);
       }
@@ -39,8 +54,11 @@ const Index = () => {
   }, []);
   
   const handleApiKeySubmit = (key: string) => {
-    setApiKey(key);
-    storeApiKey(key);
+    if (key && key.startsWith('sk-or-')) {
+      setApiKey(key);
+      storeApiKey(key);
+      toast.success("API key saved");
+    }
   };
   
   const handleStartDiscussion = (newTopic: string, models: string[]) => {

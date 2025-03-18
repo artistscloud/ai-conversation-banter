@@ -15,6 +15,7 @@ serve(async (req) => {
     const key = Deno.env.get("OPENROUTER_API_KEY");
     
     if (!key) {
+      console.error("API key not found in environment variables");
       return new Response(
         JSON.stringify({ error: "API key not found in environment variables" }),
         {
@@ -26,6 +27,7 @@ serve(async (req) => {
 
     // Validate key format
     if (!key.startsWith('sk-or-')) {
+      console.error("Invalid API key format");
       return new Response(
         JSON.stringify({ error: "Invalid API key format. Must start with 'sk-or-'" }),
         {
@@ -35,6 +37,7 @@ serve(async (req) => {
       );
     }
 
+    console.log("Successfully retrieved OpenRouter API key");
     // Return the API key
     return new Response(
       JSON.stringify({ key }),
@@ -44,6 +47,7 @@ serve(async (req) => {
       }
     );
   } catch (error) {
+    console.error("Error in set-openrouter-key function:", error.message);
     return new Response(
       JSON.stringify({ error: error.message }),
       {

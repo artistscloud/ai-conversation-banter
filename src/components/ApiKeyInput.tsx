@@ -14,31 +14,52 @@ const ApiKeyInput: React.FC<ApiKeyInputProps> = ({ onApiKeySubmit }) => {
   const [apiKey, setApiKey] = useState("");
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [isLoading, setIsLoading] = useState(true);
+  const [showForm, setShowForm] = useState(false);
 
   // On component mount, check for API key from various sources
   useEffect(() => {
     async function checkForApiKey() {
       setIsLoading(true);
+      
       try {
-        // Try to get key from Supabase or localStorage
-        const key = await getApiKey();
-        if (key && key.startsWith('sk-or-')) {
-          onApiKeySubmit(key);
+        // First check localStorage
+        const localKey = localStorage.getItem("openrouter_api_key");
+        if (localKey && localKey.startsWith('sk-or-')) {
+          console.log("Found API key in localStorage");
+          onApiKeySubmit(localKey);
+          setIsLoading(false);
           return;
         }
-      } catch (error) {
-        console.error("Error fetching API key:", error);
-        // If we couldn't get a key from Supabase, check URL params
+        
+        // Then check URL params
         const urlParams = new URLSearchParams(window.location.search);
         const keyFromUrl = urlParams.get('key');
         
         if (keyFromUrl && keyFromUrl.startsWith('sk-or-')) {
+          console.log("Found API key in URL");
           setApiKey(keyFromUrl);
           storeApiKey(keyFromUrl);
           onApiKeySubmit(keyFromUrl);
           // Clean the URL without refreshing the page
           window.history.replaceState({}, document.title, window.location.pathname);
+          setIsLoading(false);
           return;
+        }
+        
+        // Finally try to get key from Supabase
+        try {
+          console.log("Trying to fetch API key from Supabase");
+          const key = await getApiKey();
+          if (key && key.startsWith('sk-or-')) {
+            console.log("Successfully retrieved API key from Supabase");
+            onApiKeySubmit(key);
+            setIsLoading(false);
+            return;
+          }
+        } catch (error) {
+          console.error("Error fetching API key from server:", error);
+          // If all methods failed, show the input form
+          setShowForm(true);
         }
       } finally {
         setIsLoading(false);
@@ -89,6 +110,10 @@ const ApiKeyInput: React.FC<ApiKeyInputProps> = ({ onApiKeySubmit }) => {
     );
   }
 
+  if (!showForm) {
+    return null;
+  }
+
   return (
     <div className="max-w-md mx-auto">
       <div className="glass-card p-6 rounded-xl space-y-6 shadow-lg animate-fade-in">
@@ -113,7 +138,7 @@ const ApiKeyInput: React.FC<ApiKeyInputProps> = ({ onApiKeySubmit }) => {
               onKeyPress={(e) => e.key === "Enter" && handleSubmit()}
             />
             <p className="text-xs text-gray-500">
-              Your API key is only stored in your browser's memory and never sent to our servers.
+              Your API key is stored in your browser's localStorage and never sent to our servers.
             </p>
           </div>
           
