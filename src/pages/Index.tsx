@@ -15,6 +15,7 @@ import { toast } from "sonner";
 const Index = () => {
   const [apiKey, setApiKey] = useState<string>("");
   const [apiKeyChecked, setApiKeyChecked] = useState<boolean>(false);
+  const [apiKeyError, setApiKeyError] = useState<boolean>(false);
   const [topic, setTopic] = useState("");
   const [selectedModels, setSelectedModels] = useState<string[]>(
     Object.keys(AI_MODELS).slice(0, 3) // Default to first 3 models
@@ -41,11 +42,16 @@ const Index = () => {
           setApiKey(key);
           storeApiKey(key);
           toast.success("Connected to OpenRouter API");
+          setApiKeyChecked(true);
+          return;
         }
+        
+        // If we get here, we couldn't get a valid key
+        setApiKeyError(true);
+        setApiKeyChecked(true);
       } catch (error) {
         console.error("Failed to get API key:", error);
-        // We'll show the API key input form
-      } finally {
+        setApiKeyError(true);
         setApiKeyChecked(true);
       }
     }
@@ -57,6 +63,7 @@ const Index = () => {
     if (key && key.startsWith('sk-or-')) {
       setApiKey(key);
       storeApiKey(key);
+      setApiKeyError(false);
       toast.success("API key saved");
     }
   };
@@ -104,7 +111,7 @@ const Index = () => {
       </header>
       
       <main className="flex-1 flex flex-col max-w-4xl w-full mx-auto px-4 pb-10">
-        {!apiKey ? (
+        {apiKeyError && !apiKey ? (
           <ApiKeyInput onApiKeySubmit={handleApiKeySubmit} />
         ) : showSavedConversations ? (
           <div className="glass-card rounded-xl overflow-hidden shadow-lg flex flex-col">
