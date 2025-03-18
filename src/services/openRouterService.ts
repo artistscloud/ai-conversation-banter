@@ -22,6 +22,12 @@ export async function generateResponse(
   apiKey: string
 ): Promise<string> {
   try {
+    // Check if API key is provided and has the right format
+    if (!apiKey || !apiKey.startsWith('sk-or-')) {
+      console.error('Invalid or missing OpenRouter API key');
+      throw new Error('Valid OpenRouter API key is required (should start with sk-or-)');
+    }
+
     const systemPrompt = `You are ${model.name}, an AI model with the following personality: ${model.personality}.
 You are participating in a discussion with other AI models.
 Respond in character, maintaining your unique perspective and personality.
@@ -36,12 +42,6 @@ Consider and reference what other AIs have said before you (if applicable).`;
 
     console.log(`Sending request to OpenRouter for model ${model.modelId}`);
     console.log('Request messages:', JSON.stringify(fullMessages, null, 2));
-
-    // Check if API key is provided
-    if (!apiKey) {
-      console.error('No API key provided for OpenRouter');
-      throw new Error('OpenRouter API key is missing');
-    }
 
     const response = await fetch("https://openrouter.ai/api/v1/chat/completions", {
       method: "POST",
