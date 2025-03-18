@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect } from "react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -16,13 +15,11 @@ const ApiKeyInput: React.FC<ApiKeyInputProps> = ({ onApiKeySubmit }) => {
   const [isLoading, setIsLoading] = useState(true);
   const [showForm, setShowForm] = useState(false);
 
-  // On component mount, check for API key from various sources
   useEffect(() => {
     async function checkForApiKey() {
       setIsLoading(true);
       
       try {
-        // First check localStorage
         const localKey = localStorage.getItem("openrouter_api_key");
         if (localKey && localKey.startsWith('sk-or-')) {
           console.log("Found API key in localStorage");
@@ -31,7 +28,6 @@ const ApiKeyInput: React.FC<ApiKeyInputProps> = ({ onApiKeySubmit }) => {
           return;
         }
         
-        // Then check URL params
         const urlParams = new URLSearchParams(window.location.search);
         const keyFromUrl = urlParams.get('key');
         
@@ -40,13 +36,11 @@ const ApiKeyInput: React.FC<ApiKeyInputProps> = ({ onApiKeySubmit }) => {
           setApiKey(keyFromUrl);
           storeApiKey(keyFromUrl);
           onApiKeySubmit(keyFromUrl);
-          // Clean the URL without refreshing the page
           window.history.replaceState({}, document.title, window.location.pathname);
           setIsLoading(false);
           return;
         }
         
-        // Finally try to get key from Supabase
         try {
           console.log("Trying to fetch API key from Supabase");
           const key = await getApiKey();
@@ -58,7 +52,6 @@ const ApiKeyInput: React.FC<ApiKeyInputProps> = ({ onApiKeySubmit }) => {
           }
         } catch (error) {
           console.error("Error fetching API key from server:", error);
-          // If all methods failed, show the input form
           setShowForm(true);
         }
       } finally {
@@ -74,17 +67,14 @@ const ApiKeyInput: React.FC<ApiKeyInputProps> = ({ onApiKeySubmit }) => {
     
     setIsSubmitting(true);
     
-    // Validate API key format
     if (!apiKey.startsWith('sk-or-')) {
       toast.error("Invalid API key format. OpenRouter keys should start with 'sk-or-'");
       setIsSubmitting(false);
       return;
     }
     
-    // Store the API key in localStorage
     storeApiKey(apiKey);
     
-    // Pass it to the parent component
     setTimeout(() => {
       onApiKeySubmit(apiKey);
       toast.success("API key accepted");
@@ -95,7 +85,7 @@ const ApiKeyInput: React.FC<ApiKeyInputProps> = ({ onApiKeySubmit }) => {
   if (isLoading) {
     return (
       <div className="max-w-md mx-auto">
-        <div className="glass-card p-6 rounded-xl space-y-6 shadow-lg animate-fade-in">
+        <div className="p-6 rounded-xl space-y-6 shadow-lg animate-fade-in">
           <div className="text-center mb-4">
             <div className="inline-flex items-center justify-center w-16 h-16 rounded-full bg-primary/10 mb-4">
               <Key className="w-8 h-8 text-primary animate-pulse" />
@@ -116,7 +106,7 @@ const ApiKeyInput: React.FC<ApiKeyInputProps> = ({ onApiKeySubmit }) => {
 
   return (
     <div className="max-w-md mx-auto">
-      <div className="glass-card p-6 rounded-xl space-y-6 shadow-lg animate-fade-in">
+      <div className="p-6 rounded-xl space-y-6 shadow-lg animate-fade-in">
         <div className="text-center mb-4">
           <div className="inline-flex items-center justify-center w-16 h-16 rounded-full bg-primary/10 mb-4">
             <Key className="w-8 h-8 text-primary" />
@@ -134,7 +124,7 @@ const ApiKeyInput: React.FC<ApiKeyInputProps> = ({ onApiKeySubmit }) => {
               value={apiKey}
               onChange={(e) => setApiKey(e.target.value)}
               placeholder="sk-or-..."
-              className="glass-input text-base"
+              className="text-base"
               onKeyPress={(e) => e.key === "Enter" && handleSubmit()}
             />
             <p className="text-xs text-gray-500">
